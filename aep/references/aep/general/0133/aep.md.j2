@@ -1,0 +1,203 @@
+# Create
+
+In REST APIs, it is customary to make a `POST` request to a collection's URI
+(for example, `/v1/publishers/{publisher_id}/books`) in order to create a new
+resource within that collection.
+
+Resource-oriented design AEP-121 honors this pattern through the `Create`
+method. These RPCs accept the parent collection if one exists, and the resource
+to create (and potentially some other parameters), and return the created
+resource.
+
+## Guidance
+
+APIs **should** provide a create method for resources unless it is not valuable
+for users to do so. The purpose of the create method is to create a new
+resource in an already-existing collection.
+
+### Operation
+
+Create methods are specified using the following pattern:
+
+- The HTTP verb **must** be `POST`.
+- Some resources take longer to be created than is reasonable for a regular API
+  request. In this situation, the API **should** use a
+  [long-running operation](/long-running-operations).
+
+{% tab proto %}
+
+{% sample '../example.proto', 'rpc CreateBook' %}
+
+- The RPC's name **must** begin with the word `Create`. The remainder of the
+  RPC name **should** be the singular form of the resource being created.
+  - The request message **must** match the RPC name, with a `Request` suffix.
+- If the collection has a parent, the collection's parent resource **must** be
+  called `parent`, and **should** be the only variable in the URI path.
+  - The collection identifier (`books` in the above example) **must** be a
+    literal string.
+- There **must** be a `body` key in the `google.api.http` annotation, and it
+  **must** map to the resource field in the request message.
+  - All remaining fields **should** map to URI query parameters.
+- The operation **must** have [strong consistency][].
+
+{% tab oas %}
+
+```http
+POST /v1/publishers/{publisher_id}/books?id={book} HTTP/2
+Host: bookstore.example.com
+Accept: application/json
+{
+  "title": "Pride and Prejudice",
+  "author": "Jane Austen"
+}
+```
+
+{% endtabs %}
+
+### Requests
+
+Create methods implement a common request message pattern:
+
+- An `id` field **should** be supported.
+- The resource field **must** be included and **must** map to the POST body.
+- The request message **must not** contain any other required fields and
+  **should not** contain other optional fields except those described in this
+  or another AEP.
+
+{% tab proto %}
+
+{% sample '../example.proto', 'message CreateBookRequest' %}
+
+- A `parent` field **must** be included unless the resource being created is a
+  top-level resource. It **should** be called `parent`.
+  - The field **should** be [annotated as `REQUIRED`][aep-203].
+  - The field **must** identify the [resource type][aep-4] of the resource
+    being created.
+
+{% tab oas %}
+
+{% sample '../example.oas.yaml', '$.paths./publishers/{publisher_id}/books.post.requestBody' %}
+
+- The request body **must** be the resource being created.
+
+{% endtabs %}
+
+### Responses
+
+{% tab proto %}
+
+{% sample '../example.proto', 'message Book' %}
+
+{% tab oas %}
+
+{% sample '../example.oas.yaml', '$.paths./publishers/{publisher_id}/books.post.responses.200' %}
+
+- The response **must** be the resource itself. There is no separate response
+  schema.
+  - The response **should** include the fully-populated resource, and **must**
+    include any fields that were provided unless they are input only (see
+    AEP-203).
+
+{% endtabs %}
+
+### Errors
+
+See [errors][], in particular [when to use PERMISSION_DENIED and NOT_FOUND
+errors][permission-denied].
+
+### User-specified IDs
+
+An API **should** allow a user to specify the ID component of a resource: not
+doing so introduces a non-idempotent request in the API, as sending the same
+payload results in creating a new resource each time.
+
+Exceptional cases should have the following behavior:
+
+- The resource allows identical records without a need to disambiguate between
+  the two (e.g. rows in a table with no primary key).
+- The resource will not be exposed in [Declarative clients][].
+
+An API **may** allow the `id` field to be optional, and give the resource a
+system-generated ID if one is not specified.
+
+For example:
+
+```
+// Using user-specified IDs.
+publishers/lacroix/books/les-miserables
+
+// Using system-generated IDs.
+publishers/012345678-abcd-cdef/books/12341234-5678-abcd
+```
+
+- The `path` field on the resource **must** be ignored.
+- The documentation **should** explain what the acceptable format is, and the
+  format **should** follow the guidance for resource path formatting in
+  AEP-122.
+- If a user tries to create a resource with an ID that would result in a
+  duplicate resource path, the service **must** error with `ALREADY_EXISTS`.
+  - However, if the user making the call does not have permission to see the
+    duplicate resource, the service **must** error with `PERMISSION_DENIED`
+    instead.
+
+{% tab proto %}
+
+- There **should** be exactly one `google.api.method_signature` annotation,
+  with a comma-delimited list of values, including the field representing the
+  resource.
+  - If the collection has a parent, the list must include `parent`.
+  - If the resource supports user-settable ids, the list must include `id`.
+- The `id` field **must** exist on the request message, not the resource
+  itself.
+  - The field **may** be required or optional. If it is required, it **should**
+    include the corresponding annotation.
+
+{% tab oas %}
+
+{% sample '../example.oas.yaml', '$.paths./publishers/{publisher_id}/books.post.requestBody' %}
+
+- The `id` field **must** be a query parameter on the request.
+
+{% endtabs %}
+
+## Interface Definitions
+
+{% tab proto %}
+
+{% sample '../example.proto', 'rpc CreateBook' %}
+
+{% sample '../example.proto', 'message CreateBookRequest' %}
+
+{% sample '../example.proto', 'message Book' %}
+
+{% tab oas %}
+
+{% sample '../example.oas.yaml', '$.paths./publishers/{publisher_id}/books.post' %}
+
+{% endtabs %}
+
+## Further reading
+
+- For ensuring idempotency in `Create` methods, see AEP-155.
+- For naming resources involving Unicode, see AEP-210.
+
+## Rationale
+
+### Requiring user-specified ids
+
+[Declarative clients][] use the resource ID as a way to identify a resource for
+applying updates and for conflict resolution. The lack of a user-specified ID
+means a client is unable to find the resource unless they store the identifier
+locally, and can result in re-creating the resource. This in turn has a
+downstream effect on all resources that reference it, forcing them to update to
+the ID of the newly-created resource.
+
+Having a user-specified ID also means the client can precalculate the resource
+path and use it in references from other resources.
+
+[data plane]: ./0111.md#data-plane
+[errors]: ./0193
+[field_behavior]: ./0203
+[Declarative clients]: ./0003.md#declarative-clients
+[permission-denied]: ./0193.md#permission-denied
+[strong consistency]: ./0121.md#strong-consistency
