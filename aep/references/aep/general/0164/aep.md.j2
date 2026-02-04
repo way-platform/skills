@@ -1,0 +1,122 @@
+# Soft delete
+
+There are several reasons why a client could desire soft delete and undelete
+functionality, but one over-arching reason stands out: recovery from mistakes.
+A service that supports undelete makes it possible for users to recover
+resources that were deleted by accident.
+
+## Guidance
+
+Services **may** support the ability to "undelete", to allow for situations
+where users mistakenly delete resources and need the ability to recover.
+
+If a resource needs to support undelete, the `Delete` method **must** simply
+mark the resource as having been deleted, but not completely remove it from the
+system. If the method behaves this way, it **should** return `200 OK` with the
+updated resource instead of `204 No Content`.
+
+Resources that support soft delete **should** have an `expire_time` field as
+described in AEP-148. Additionally, resources **should** include a `DELETED`
+state value if the resource includes a `state` field AEP-216.
+
+### Undelete
+
+A resource that supports soft delete **should** provide an `Undelete` method:
+
+{% tab proto %}
+
+{% sample 'undelete.proto', 'rpc UndeleteBook', 'message UndeleteBookRequest' %}
+
+- The HTTP method **must** be `POST`.
+- The `body` clause **must** be `"*"`.
+- The response message **must** be the resource itself. There is no
+  `UndeleteBookResponse`.
+  - The response **should** include the fully-populated resource unless it is
+    infeasible to do so.
+  - If the undelete RPC is [long-running](#long-running-undelete), the response
+    message **must** be a `google.longrunning.Operation` which resolves to the
+    resource itself.
+- A `name` field **must** be included in the request message; it **should** be
+  called `name`.
+  - The field **should** be [annotated as required][aep-203].
+  - The field **should** identify the [resource type][aep-4] that it
+    references.
+  - The comment for the field **should** document the resource pattern.
+- The request message **must not** contain any other required fields, and
+  **should not** contain other optional fields except those described in this
+  or another AEP.
+
+{% tab oas %}
+
+{% sample 'undelete.oas.yaml', '$.paths' %}
+
+- The HTTP method **must** be `POST`.
+- The response message **must** be the resource itself.
+  - The response **should** include the fully-populated resource unless it is
+    infeasible to do so.
+- The operation **must not** require any other fields, and **should not**
+  contain other optional query parameters except those described in this or
+  another AEP.
+
+{% endtabs %}
+
+### Create
+
+Create methods **must** adhere to one of the following:
+
+- If a user attempts a create on a soft-deleted resource, the create **must**
+  succeed, acting as if the resource did not exist previously.
+- The create **must** accept a field (query parameter for OAS),
+  `overwrite_soft_deleted`. If set to `false`, the request **must** fail if a
+  soft-deleted resource exists. If set to `true`, the request **must** succeed
+  if the resource exists acting as if the resource did not exist previously.
+
+### List and Get
+
+Soft-deleted resources **must not** be returned in `List` AEP-132 responses by
+default (unless `bool show_deleted` is true).
+
+A `Get` AEP-131 request for a soft deleted resource **must** return with a
+`404 Not Found` response unless `bool show_deleted` is true, in which case
+soft-deleted resources **must** return the resource (with the `DELETED` state
+value if the resource includes a [`state` field](/states)).
+
+Services that soft delete resources **may** choose a reasonable strategy for
+purging those resources, including automatic purging after a reasonable time
+(such as 30 days), allowing users to set an expiry time AEP-214, or retaining
+the resources indefinitely. Regardless of what strategy is selected, the
+service **should** document when soft deleted resources will be completely
+removed.
+
+### Declarative-friendly resources
+
+**Important:** There is an ambiguity in declarative tooling between "create"
+and "undelete". When given an alias which was previously deleted and a
+directive to make it exist, tooling usually does not know if the intent is to
+restore the previously-deleted resource, or create a new one with the same
+alias. Declarative tools **should** resolve this ambiguity in favor of creating
+a new resource: the only way to undelete is to explicitly use the undelete RPC
+(an imperative operation), and declarative tools **may** elect not to map
+anything to undelete at all.
+
+### Errors
+
+Also see [errors](/errors) for additional guidance.
+
+If the user does have proper permission, but the requested resource does not
+exist (either it was never created or already expunged), the service **must**
+error with `404 Not Found`.
+
+If the user calling a soft `Delete` has proper permission, but the requested
+resource is already deleted, the service **must** succeed if `allow_missing` is
+`true`, and **must** error with `404 Not Found` if `allow_missing` is `false`.
+
+If the user calling `Undelete` has proper permission, but the requested
+resource is not deleted, the service **must** error with `409 Conflict`.
+
+## Further reading
+
+- For the `Delete` standard method, see AEP-135.
+- For long-running operations, see AEP-151.
+- For resource freshness validation (`etag`), see AEP-154.
+- For change validation (`validate_only`), see AEP-163.

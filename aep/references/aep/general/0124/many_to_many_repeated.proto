@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+import "aep/api/field_info.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+message Book {
+  option (aep.api.resource) = {
+    type: "library.googleapis.com/Book"
+    pattern: "publishers/{publisher_id}/books/{book_id}"
+  };
+
+  string path = 1;
+
+  // The resource paths for the book's authors.
+  repeated string authors = 2 [(aep.api.field_info) = { resource_reference: [ "library.googleapis.com/author" ], field_behavior: [ FIELD_BEHAVIOR_REQUIRED ] }];
+}
