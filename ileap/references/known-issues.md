@@ -88,14 +88,30 @@ ACT delegates PACT tests to an external service that must reach the API
 over the internet. Localhost URLs cause PACT test failures. iLEAP-specific
 tests (TC001-TC007) work locally.
 
-## PACT TC8 and TC18: Known Reference Failures
+## PACT TC8, TC18, and TC19: Known Reference Failures
 
-PACT TC8 and TC18 fail even on the SINE demo API at
-`api.ileap.sine.dev`. Treat these as known failures when evaluating
-ACT results.
+PACT TC8, TC18, and TC19 fail even on the SINE demo API at
+`api.ileap.sine.dev`. TC19 structurally depends on TC18's OIDC-based
+authentication flow, so it always fails when TC18 fails. Treat these
+as known failures when evaluating ACT results.
 
 ## `biogenicAccountingMethodology` Valid Values
 
 Valid values: `GHGP`, `ISO`, `PEF`, `Quantis`.
 
 Note: the correct value is `GHGP` (not `GHPG`) — common typo.
+
+## `hubType` Enum Is PascalCase
+
+The `hubType` field on HOC must use PascalCase values (e.g.,
+`"Transshipment"`, `"Warehouse"`, `"StorageAndTransshipment"`).
+Using lowercase values (like `"transshipment"`) will cause ACT TC 003
+to fail with an "unknown variant" error.
+
+## CloudEvents `data` Validation (TC 21)
+
+The `POST /2/events` handler must validate that the `data` field is
+present **and not null**. ACT TC 21 explicitly tests that a CloudEvent
+with `"data": null` or with `data` absent returns `400 BadRequest`.
+If your implementation uses raw/dynamic JSON for `data`, you must add
+an explicit null check to pass TC 21.

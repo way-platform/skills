@@ -101,6 +101,15 @@ All numeric values are `Decimal` -- JSON strings matching
 | `co2eIntensityTTW` | Decimal | M | TTW intensity per hubActivityUnit |
 | `hubActivityUnit` | String | M | `"tonnes"` or `"TEU"` |
 
+### EnergyCarrier
+
+| Property | Type | Req | Description |
+|---|---|---|---|
+| `energyCarrier` | EnergyCarrierType | M | Enum value |
+| `emissionFactorTTW` | Decimal | M | kgCO2e per unit |
+| `emissionFactorWTW` | Decimal | M | kgCO2e per unit |
+| `relativeShare` | Decimal | M | Fraction of total energy (0–1). Must be `"1"` if only one carrier. |
+
 ### TAD (Transport Activity Data)
 
 | Property | Type | Req | Description |
@@ -192,6 +201,18 @@ contract including request/response formats.
 
 Supports `$filter` query parameter (OData v4 subset) and `limit`
 pagination with `Link` header.
+
+**Required filterable fields** (`GET /2/footprints`):
+| Field | Operators |
+|---|---|
+| `productCategoryCpc` | `eq` |
+| `productIds/any(id:(id eq '...'))` | `any/eq` |
+| `companyIds/any(id:(id eq '...'))` | `any/eq` |
+| `pcf/geographyCountry` | `eq` |
+| `created` | `gt`, `lt` |
+| `updated` | `gt`, `lt` |
+
+Combined filters using `and` must also be supported.
 
 ### iLEAP endpoint
 

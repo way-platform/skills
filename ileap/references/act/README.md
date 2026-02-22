@@ -79,6 +79,12 @@ If you intend to use this action to test live or otherwise production-like syste
      `${{secrets.ACT_PASSWORD}}`)
 
 
+## Important Testing Note: ACT Parsing Cascade
+
+ACT parses data records sequentially field by field. When a required field is missing, it stops and reports that specific error — it does not continue to find further missing fields in the same record.
+
+Because of this, fixing one missing field and redeploying may reveal a new missing field in the same record on the next test run. To minimize fix-deploy-test cycles, we highly recommend **validating your demo data against the JSON schemas** (located in `references/ileap-data-model/schemas/`) *before* running ACT.
+
 ## Limitations
 
 > [!IMPORTANT]
