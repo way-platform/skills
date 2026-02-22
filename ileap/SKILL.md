@@ -407,6 +407,8 @@ grep -n 'dfn>.*Denied\|dfn>.*Request\|dfn>.*Expired' references/pact-spec-v2/ind
 
 ## Reference Files
 
+### Internal Skill References
+
 | File | Purpose |
 |---|---|
 | `references/ileap-extension/specs/index.bs` | Normative iLEAP spec (Bikeshed source) |
@@ -418,8 +420,14 @@ grep -n 'dfn>.*Denied\|dfn>.*Request\|dfn>.*Expired' references/pact-spec-v2/ind
 | `references/ileap-data-model/schemas/*.json` | JSON schemas for all iLEAP data types |
 | `references/pact-data-model/schema/data-model-schema.json` | PACT base data model schema |
 | `references/pact-integration-examples.md` | Annotated PACT integration JSON examples |
-| `references/demo-api/` | SINE Foundation demo server source (Rust/Rocket) |
 | `references/act/README.md` | ACT CLI usage, test coverage |
 | `references/act/act.sh` | ACT runner script (detects arch, downloads binary) |
 | `references/pilot-certification.md` | SFC certification process for iLEAP |
 | `references/whitepaper-v1.md` | Strategic context only (not useful for implementation) |
+
+### External References
+
+| Link | Purpose |
+|---|---|
+| [SINE Foundation Demo API](https://github.com/sine-fdn/impact-protocols/tree/main/demo-api) | External reference server implementation (Rust/Rocket) |
+| [Way Platform iLEAP Go](https://github.com/way-platform/ileap-go) | Way's iLEAP implementation in Go |
