@@ -34,7 +34,7 @@ curl -sSf https://raw.githubusercontent.com/sine-fdn/act/main/act.sh |\
 Example usage with SINE's iLEAP demo API
 ```sh
 curl -sSf https://raw.githubusercontent.com/sine-fdn/act/main/act.sh |\
-  bash -s -- test -b "https://api.ileap.sine.dev" -u "hello" -p "pathfinder"
+  bash -s -- test -b "https://api.ileap.sine.dev" -u "<demo-user>" -p "<demo-password>"
 ```
 
 ### Options

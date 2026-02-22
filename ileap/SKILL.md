@@ -246,9 +246,9 @@ See `references/known-issues.md` for error code gotchas (e.g.,
 - **CLI**: `references/act/act.sh` -- downloads and runs binary for current architecture (arm64/x86_64)
 
 ```sh
-# Run against demo API
+# Run against demo API (Check SINE Foundation Demo API for current credentials)
 curl -sSf https://raw.githubusercontent.com/sine-fdn/act/main/act.sh |\
-  bash -s -- test -b "https://api.ileap.sine.dev" -u "hello" -p "pathfinder"
+  bash -s -- test -b "https://api.ileap.sine.dev" -u "<demo-user>" -p "<demo-password>"
 ```
 
 ```sh
@@ -306,11 +306,7 @@ https://api.ileap.sine.dev
 
 ### Credentials
 
-| client_id | client_secret | Scope |
-|---|---|---|
-| `hello` | `pathfinder` | Global access to all data |
-| `transport_service_user` | `ileap` | ShipmentFootprints + TAD |
-| `transport_service_organizer` | `ileap` | TOCs + HOCs + TAD |
+Demo API credentials for the SINE reference server (including role-based accounts like `transport_service_user` and `transport_service_organizer`) are published in the [SINE Foundation Demo API GitHub Repository](https://github.com/sine-fdn/impact-protocols/tree/main/demo-api#credentials).
 
 ### Step-by-step verification
 
@@ -320,7 +316,7 @@ curl -s https://api.ileap.sine.dev/.well-known/openid-configuration | jq .
 
 # 2. Obtain access token
 TOKEN=$(curl -s -X POST https://api.ileap.sine.dev/auth/token \
-  -u "hello:pathfinder" \
+  -u "<demo-user>:<demo-password>" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" | jq -r .access_token)
 
