@@ -239,6 +239,9 @@ See `references/known-issues.md` for error code gotchas (e.g.,
 
 ## Conformance Testing & ACT
 
+For a comprehensive guide on conformance tests, definitions, and requirements, please refer to the dedicated document:
+**`references/conformance-tests.md`**
+
 ### Conformance levels
 
 1. **Emissions Data Conformance**: DT#1 + DT#2 (ShipmentFootprint, TOC, HOC via `/2/footprints`)
@@ -428,6 +431,7 @@ grep -n 'dfn>.*Denied\|dfn>.*Request\|dfn>.*Expired' references/pact-spec-v2/ind
 
 | File | Purpose |
 |---|---|
+| `references/conformance-tests.md` | iLEAP and PACT conformance tests definitions |
 | `references/ileap-extension/specs/index.bs` | Normative iLEAP spec (Bikeshed source) |
 | `references/pact-spec-v2/index.bs` | PACT v2.1.0 spec (Bikeshed source) |
 | `references/pact-implementation-guide.md` | PACT implementation steps (auth, endpoints, data model) |
