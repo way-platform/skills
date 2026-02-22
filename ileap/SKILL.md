@@ -247,7 +247,7 @@ For a comprehensive guide on conformance tests, definitions, and requirements, p
 1. **Emissions Data Conformance**: DT#1 + DT#2 (ShipmentFootprint, TOC, HOC via `/2/footprints`)
 2. **Activity Data Conformance**: DT#3 (TAD via `/2/ileap/tad`)
 
-### Test cases
+### iLEAP Test cases
 
 | TC | Description | Endpoint | Expected |
 |---|---|---|---|
@@ -264,9 +264,27 @@ For a comprehensive guide on conformance tests, definitions, and requirements, p
 > so ACT can wait for expiry. Most test servers skip this by issuing
 > long-lived tokens — TC008 will then time out or fail.
 
+### PACT Test Cases (TC1-TC21)
+
+The ACT tool also runs complementary PACT conformance test cases alongside iLEAP tests. Refer to `references/pact-conformance-service/v2-test-cases-expected-results.md` for full definitions.
+
+**Testability Classification**:
+- **Locally testable** (13 tests): TC1-TC8, TC15-TC16, TC18-TC20. Can run against local mock servers (`httptest.NewServer`).
+- **Deployment-only** (5 tests): TC9-TC11, TC17, TC21. Verify HTTPS enforcement; only apply to real deployments.
+- **Callback-dependent** (3 tests): TC12-TC14. Require the server to POST back to a webhook URL, needing a mock listener.
+
+**Edge Cases**:
+- **TC15 (Published Event)**: Requires a valid CloudEvent format (`type: "org.wbcsd.pathfinder.ProductFootprint.Published.v1"`, `specversion: "1.0"`, with `data.pfIds`).
+- **TC20 (OData `$filter`)**: The `+` character must be used as a space separator in the query string (not `%20`), as some implementations are sensitive to encoding.
+
 ### Implementation Strategy: Unit Test Suite
 
-When building an iLEAP-conformant API, strongly consider implementing the conformance test cases (TC001-TC008) and the PACT Required Test Cases as a standalone **integration or unit test suite** within your language's native testing framework (e.g., `go test`, `pytest`, `Jest`).
+When building an iLEAP-conformant API, strongly consider implementing the conformance test cases (TC001-TC008) and the PACT Required Test Cases (TC1-TC21) as a standalone **integration or unit test suite** within your language's native testing framework (e.g., `go test`, `pytest`, `Jest`).
+
+**Numbering Distinction**:
+iLEAP and PACT test cases use separate numbering schemes. To avoid confusion, local Go tests use:
+- `TestTC001_...` through `TestTC008_...` for iLEAP TCs
+- `TestPACT_TC01_...` through `TestPACT_TC20_...` for PACT TCs
 
 **Why this matters:**
 - **Regression Protection**: Ensures that changes to core routing, auth, and data modeling don't accidentally break conformity before running the official ACT tool.
@@ -308,11 +326,11 @@ act_test:
 ```
 
 **Important ACT constraints**:
-- PACT tests require a publicly reachable server — ACT delegates PACT
-  tests to an external service that must reach the API over the internet
+- **Public URL Requirement**: PACT tests require a publicly reachable server. ACT delegates PACT tests to an external service that must reach the API over the internet. Local `httptest` servers cannot be tested with ACT directly.
 - No iLEAP-only flag — ACT always runs both PACT and iLEAP test suites
-- PACT TC8 and TC18 are known failures even on the SINE reference API
-  (`api.ileap.sine.dev`)
+- **Known Failures**: 
+  - **TC18/TC19 (OIDC)**: ACT crashes with a panic on local URLs. These tests pass on remote deployments.
+  - **TC8 (Expired token)**: ACT's handling is unreliable; the equivalent logic is covered by iLEAP TC008. PACT TC8 and TC18 are known failures even on the SINE reference API (`api.ileap.sine.dev`).
 
 See `references/act/README.md` for full CLI options and coverage details.
 
@@ -441,6 +459,7 @@ grep -n 'dfn>.*Denied\|dfn>.*Request\|dfn>.*Expired' references/pact-spec-v2/ind
 | File | Purpose |
 |---|---|
 | `references/conformance-tests.md` | iLEAP and PACT conformance tests definitions |
+| `references/pact-conformance-service/v2-test-cases-expected-results.md` | PACT Conformance Service – V2 Test Cases & Expected Results |
 | `references/ileap-extension/specs/index.bs` | Normative iLEAP spec (Bikeshed source) |
 | `references/pact-spec-v2/index.bs` | PACT v2.1.0 spec (Bikeshed source) |
 | `references/pact-implementation-guide.md` | PACT implementation steps (auth, endpoints, data model) |
