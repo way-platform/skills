@@ -264,6 +264,15 @@ For a comprehensive guide on conformance tests, definitions, and requirements, p
 > so ACT can wait for expiry. Most test servers skip this by issuing
 > long-lived tokens — TC008 will then time out or fail.
 
+### Implementation Strategy: Unit Test Suite
+
+When building an iLEAP-conformant API, strongly consider implementing the conformance test cases (TC001-TC008) and the PACT Required Test Cases as a standalone **integration or unit test suite** within your language's native testing framework (e.g., `go test`, `pytest`, `Jest`).
+
+**Why this matters:**
+- **Regression Protection**: Ensures that changes to core routing, auth, and data modeling don't accidentally break conformity before running the official ACT tool.
+- **SFC Certification**: Conformance test cases are central to achieving SFC Certification. Automating these tests locally drastically shortens the feedback loop.
+- **Mocking**: Building local test suites allows you to mock database layers and quickly test HTTP handler edge cases (e.g., pagination behaviors, token expiration, OData filtering) without spinning up the entire stack.
+
 ### ACT (Automated Conformance Testing)
 
 - **Web UI**: https://act.sine.dev

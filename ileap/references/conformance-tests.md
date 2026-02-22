@@ -20,6 +20,15 @@ To achieve iLEAP Emissions Data Conformance, host systems are further **REQUIRED
 
 It is **RECOMMENDED** for host systems to conform to both kinds of iLEAP conformance.
 
+### Requirements for Formal iLEAP / SFC Certification
+
+When applying for formal certification (e.g., the SFC Certification Scheme extension for iLEAP Tool Providers), the testing requirements strictly map to the data transactions (DT):
+
+*   **MANDATORY**: To achieve certification, implementations *must* pass tests for **DT#1** and **DT#2** (ShipmentFootprint, TOC, HOC), which corresponds to the **iLEAP Emissions Data Conformance** track (Test Cases **TC001-TC003**), alongside the baseline **PACT Required Test Cases** (specifically Authentication, Action ListFootprints, and Action GetFootprint tests).
+*   **OPTIONAL (but recommended)**: Passing tests for **DT#3** (TAD), which corresponds to the **iLEAP Activity Data Conformance** track (Test Cases **TC004-TC008**), is currently optional for certification but recommended.
+
+*Note: During the pilot phase, if an implementation fails the mandatory criteria, providers are given a two-week timeframe for remediation, allowing for a maximum of three certification test runs.*
+
 ---
 
 ## 1. PACT Conformance Tests
