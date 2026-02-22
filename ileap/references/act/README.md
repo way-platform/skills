@@ -85,6 +85,17 @@ ACT parses data records sequentially field by field. When a required field is mi
 
 Because of this, fixing one missing field and redeploying may reveal a new missing field in the same record on the next test run. To minimize fix-deploy-test cycles, we highly recommend **validating your demo data against the JSON schemas** (located in `references/ileap-data-model/schemas/`) *before* running ACT.
 
+## Debugging Methodology for Unexpected ACT Failures
+
+When ACT returns an unexpected status code, probe your deployed server directly with `curl` to isolate the cause before diving into code:
+
+1. **Obtain a token** directly from your auth endpoint.
+2. **Reproduce the exact request** the test sends.
+3. **Vary one dimension at a time** (e.g., change timezone suffix from `Z` to `+00:00`, or `specversion` from `"1.0"` to `"0.3"`) to identify the exact trigger.
+4. **Extract strings from the ACT binary** (`strings conformance_x86_64`) to surface embedded error messages and field names that hint at what the test checks.
+
+This approach prevents guessing at ACT's internal expectations and quickly confirms or rules out hypotheses.
+
 ## Limitations
 
 > [!IMPORTANT]
