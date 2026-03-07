@@ -1,0 +1,750 @@
+---
+source_url: https://beam.apache.org/documentation/io/built-in/google-bigquery/
+fetched_at_utc: 2026-03-07T12:12:29.230731+00:00
+page_title: "Google BigQuery I/O connector"
+beam_last_updated: "Last updated on 2026/03/06"
+---
+
+[Built-in I/O Transforms](/documentation/io/built-in/)
+
+# Google BigQuery I/O connector
+
+The Beam SDKs include built-in transforms that can read data from and write data
+to [Google BigQuery](https://cloud.google.com/bigquery) tables.
+
+## Before you start
+
+To use BigQueryIO, you must install the Google Cloud Platform dependencies by
+running `pip install apache-beam[gcp]`.
+
+Additional resources:
+
+- [BigQueryIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py)
+- [BigQueryIO Pydoc](https://beam.apache.org/releases/pydoc/2.71.0/apache_beam.io.gcp.bigquery.html)
+- [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
+
+## BigQuery basics
+
+### Table names
+
+To read or write from a BigQuery table, you must provide a fully-qualified
+BigQuery table name (for example, `bigquery-public-data:github_repos.sample_contents`).
+A fully-qualified BigQuery table name consists of three parts:
+
+- **Project ID**: The ID for your Google Cloud Project. The default value comes
+  from your pipeline options object.
+- **Dataset ID**: The BigQuery dataset ID, which is unique within a given Cloud
+  Project.
+- **Table ID**: A BigQuery table ID, which is unique within a given dataset.
+
+A table name can also include a [table decorator](https://cloud.google.com/bigquery/table-decorators)
+if you are using [time-partitioned tables](#using-time-partitioning).
+
+To specify a BigQuery table, you can use either the table’s fully-qualified name as
+a string, or use a
+[TableReference](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html#table-references)
+object.
+
+#### Using a string
+
+To specify a table with a string, use the format
+`[project_id]:[dataset_id].[table_id]` or `[project_id].[dataset_id].[table_id]`
+to specify the fully-qualified BigQuery table name.
+
+![](/images/copy-icon.svg)
+
+```
+# project-id:dataset_id.table_id
+table_spec = 'apache-beam-testing.samples.weather_stations'
+```
+
+You can also omit `project_id` and use the `[dataset_id].[table_id]` format. If
+you omit the project ID, Beam uses the default project ID from your
+[pipeline options](https://beam.apache.org/releases/pydoc/2.71.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
+
+![](/images/copy-icon.svg)
+
+```
+# dataset_id.table_id
+table_spec = 'samples.weather_stations'
+```
+
+#### Using a TableReference
+
+To specify a table with a `TableReference`, create a new `TableReference` using
+the three parts of the BigQuery table name.
+
+![](/images/copy-icon.svg)
+
+```
+from apache_beam.io.gcp.internal.clients import bigquery
+
+table_spec = bigquery.TableReference(
+    projectId='clouddataflow-readonly',
+    datasetId='samples',
+    tableId='weather_stations')
+```
+
+### Table rows
+
+BigQueryIO read and write transforms produce and consume data as a `PCollection`
+of dictionaries, where each element in the `PCollection` represents a single row
+in the table.
+
+### Schemas
+
+When writing to BigQuery, you must supply a table schema for the destination
+table that you want to write to, unless you specify a [create
+disposition](#create-disposition) of `CREATE_NEVER`. [Creating a table
+schema](#creating-a-table-schema) covers schemas in more detail.
+
+### Data types
+
+BigQuery supports the following data types: STRING, BYTES, INTEGER, FLOAT,
+NUMERIC, BOOLEAN, TIMESTAMP, DATE, TIME, DATETIME and GEOGRAPHY. For an
+overview of Google Standard SQL data types, see
+[Data types](https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types).
+BigQueryIO allows you to use all of these data types. The following example
+shows the correct format for data types used when reading from and writing to
+BigQuery:
+
+![](/images/copy-icon.svg)
+
+```
+bigquery_data = [{
+    'string': 'abc',
+    'bytes': base64.b64encode(b'\xab\xac'),
+    'integer': 5,
+    'float': 0.5,
+    'numeric': Decimal('5'),
+    'boolean': True,
+    'timestamp': '2018-12-31 12:44:31.744957 UTC',
+    'date': '2018-12-31',
+    'time': '12:44:31',
+    'datetime': '2018-12-31T12:44:31',
+    'geography': 'POINT(30 10)'
+}]
+```
+
+As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
+high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
+The GEOGRAPHY data type works with Well-Known Text (See <https://en.wikipedia.org/wiki/Well-known_text>
+format for reading and writing to BigQuery.
+BigQuery IO requires values of BYTES datatype to be encoded using base64
+encoding when writing to BigQuery. When bytes are read from BigQuery they are
+returned as base64-encoded bytes.
+
+## Reading from BigQuery
+
+BigQueryIO allows you to read from a BigQuery table, or to execute a SQL query
+and read the results. By default, Beam invokes a [BigQuery export
+request](https://cloud.google.com/bigquery/docs/exporting-data) when you apply a
+BigQueryIO read transform. However, the Beam SDK for Java also supports using
+the [BigQuery Storage Read
+API](https://cloud.google.com/bigquery/docs/reference/storage) to read directly
+from BigQuery storage. See [Using the Storage Read API](#storage-api) for
+more information.
+
+> Beamâs use of BigQuery APIs is subject to BigQuery’s
+> [Quota](https://cloud.google.com/bigquery/quota-policy)
+> and [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+
+To read from a BigQuery table using the Beam SDK for Python, apply a `ReadFromBigQuery`
+transform. `ReadFromBigQuery` returns a `PCollection` of dictionaries,
+where each element in the `PCollection` represents a single row in the table.
+Integer values in the `TableRow` objects are encoded as strings to match
+BigQuery’s exported JSON format.
+
+**_Note:_** `BigQuerySource()` is deprecated as of Beam SDK 2.25.0. Before 2.25.0, to read from
+a BigQuery table using the Beam SDK, apply a `Read` transform on a `BigQuerySource`. For example,
+`beam.io.Read(beam.io.BigQuerySource(table_spec))`.
+
+### Reading from a table
+
+To read an entire BigQuery table, use the `table` parameter with the BigQuery
+table name.
+
+The following code reads an entire table that contains weather station data and
+then extracts the `max_temperature` column.
+
+![](/images/copy-icon.svg)
+
+```
+max_temperatures = (
+    pipeline
+    | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec)
+    # Each row is a dictionary where the keys are the BigQuery columns
+    | beam.Map(lambda elem: elem['max_temperature']))
+```
+
+### Reading with a query string
+
+If you don’t want to read an entire table, you can supply a query string to
+`ReadFromBigQuery` by specifying the `query` parameter.
+
+The following code uses a SQL query to only read the `max_temperature` column.
+
+![](/images/copy-icon.svg)
+
+```
+max_temperatures = (
+    pipeline
+    | 'QueryTable' >> beam.io.ReadFromBigQuery(
+        query='SELECT max_temperature FROM '\
+              '[apache-beam-testing.samples.weather_stations]')
+    # Each row is a dictionary where the keys are the BigQuery columns
+    | beam.Map(lambda elem: elem['max_temperature']))
+```
+
+You can also use BigQuery’s standard SQL dialect with a query string, as shown
+in the following example:
+
+![](/images/copy-icon.svg)
+
+```
+max_temperatures = (
+    pipeline
+    | 'QueryTableStdSQL' >> beam.io.ReadFromBigQuery(
+        query='SELECT max_temperature FROM '\
+              '`clouddataflow-readonly.samples.weather_stations`',
+        use_standard_sql=True)
+    # Each row is a dictionary where the keys are the BigQuery columns
+    | beam.Map(lambda elem: elem['max_temperature']))
+```
+
+#### Query execution project
+
+By default the pipeline executes the query in the Google Cloud project associated with the pipeline (in case of the Dataflow runner it’s the project where the pipeline runs). There are cases where the query execution project should be different from the pipeline project. If you use Java SDK, you can define the query execution project by setting the pipeline option “[bigQueryProject](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html#getBigQueryProject--)” to the desired Google Cloud project id.
+
+### Using the Storage Read API
+
+The [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/)
+allows you to directly access tables in BigQuery storage, and supports features
+such as column selection and predicate filter push-down which can allow more
+efficient pipeline execution.
+
+The Beam SDK for Java supports using the BigQuery Storage API when reading from
+BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
+[experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
+and use the pre-GA BigQuery Storage API surface. Callers should migrate
+pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.
+
+The Beam SDK for Python supports the BigQuery Storage API. Enable it
+by passing `method=DIRECT_READ` as a parameter to `ReadFromBigQuery`.
+
+#### Updating your code
+
+Use the following methods when you read from a table:
+
+- Required: Specify [withMethod(Method.DIRECT_READ)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-) to use the BigQuery Storage API for the read operation.
+- Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/), you must specify [withSelectedFields](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withSelectedFields-java.util.List-) and [withRowRestriction](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withRowRestriction-java.lang.String-) respectively.
+
+The following code snippet reads from a table. This example is from the [BigQueryTornadoes
+example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
+When the example’s read method option is set to `DIRECT_READ`, the pipeline uses
+the BigQuery Storage API and column projection to read public samples of weather
+data from a BigQuery table. You can view the [full source code on
+GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
+
+![](/images/copy-icon.svg)
+
+```
+max_temperatures = (
+    pipeline
+    | 'ReadTableWithStorageAPI' >> beam.io.ReadFromBigQuery(
+        table=table_spec, method=beam.io.ReadFromBigQuery.Method.DIRECT_READ)
+    | beam.Map(lambda elem: elem['max_temperature']))
+```
+
+The following code snippet reads with a query string.
+
+![](/images/copy-icon.svg)
+
+```
+# The SDK for Python does not support the BigQuery Storage API.
+```
+
+## Writing to BigQuery
+
+BigQueryIO lets you write to BigQuery tables. If you are using the Beam SDK
+for Java, you can write different rows to different tables. The Beam SDK for
+Java also supports using the
+[BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api)
+to write directly to BigQuery storage. For more information, see
+[Using the Storage Write API](#storage-write-api).
+
+> BigQueryIO write transforms use APIs that are subject to BigQuery’s
+> [Quota](https://cloud.google.com/bigquery/quota-policy) and
+> [Pricing](https://cloud.google.com/bigquery/pricing) policies.
+
+When you apply a write transform, you must provide the following information
+for the destination table(s):
+
+- The table name.
+- The destination table’s create disposition. The create disposition specifies
+  whether the destination table must exist or can be created by the write
+  operation.
+- The destination table’s write disposition. The write disposition specifies
+  whether the data you write replaces an existing table, appends rows to an
+  existing table, or writes only to an empty table.
+
+In addition, if your write operation creates a new BigQuery table, you must also
+supply a table schema for the destination table.
+
+### Create disposition
+
+The create disposition controls whether or not your BigQuery write operation
+should create a table if the destination table does not exist.
+
+Use the `create_disposition` parameter to specify the create disposition. Valid
+enum values are:
+
+- `BigQueryDisposition.CREATE_IF_NEEDED`: Specifies that the write operation
+  should create a new table if one does not exist. If you use this value, you
+  must provide a table schema. `CREATE_IF_NEEDED` is the default behavior.
+- `BigQueryDisposition.CREATE_NEVER`: Specifies that a table should never be
+  created. If the destination table does not exist, the write operation fails.
+
+If you specify `CREATE_IF_NEEDED` as the create disposition and you don’t supply
+a table schema, the transform might fail at runtime if the destination table does
+not exist.
+
+### Write disposition
+
+The write disposition controls how your BigQuery write operation applies to an
+existing table.
+
+Use the `write_disposition` parameter to specify the write disposition. Valid
+enum values are:
+
+- `BigQueryDisposition.WRITE_EMPTY`: Specifies that the write operation should
+  fail at runtime if the destination table is not empty. `WRITE_EMPTY` is the
+  default behavior.
+- `BigQueryDisposition.WRITE_TRUNCATE`: Specifies that the write operation
+  should replace an existing table. Any existing rows in the destination table
+  are removed, and the new rows are added to the table.
+- `BigQueryDisposition.WRITE_APPEND`: Specifies that the write operation should
+  append the rows to the end of the existing table.
+
+When you use `WRITE_EMPTY`, the check for whether or not the destination table
+is empty can occur before the actual write operation. This check doesn’t
+guarantee that your pipeline will have exclusive access to the table. Two
+concurrent pipelines that write to the same output table with a write
+disposition of `WRITE_EMPTY` might start successfully, but both pipelines can
+fail later when the write attempts happen.
+
+### Creating a table schema
+
+If your BigQuery write operation creates a new table, you must provide schema
+information. The schema contains information about each field in the table.
+When updating a pipeline with a new schema, the existing schema fields must
+stay in the same order, or the pipeline will break, failing to write to BigQuery.
+
+To create a table schema in Python, you can either use a `TableSchema` object,
+or use a string that defines a list of fields. Single string based schemas do
+not support nested fields, repeated fields, or specifying a BigQuery mode for
+fields (the mode is always set to `NULLABLE`).
+
+#### Using a TableSchema
+
+To create and use a table schema as a `TableSchema` object, follow these steps.
+
+1. Create a `TableSchema` object.
+2. Create and append a `TableFieldSchema` object for each field in your table.
+3. Use the `schema` parameter to provide your table schema when you apply
+   a write transform. Set the parameterâs value to the `TableSchema` object.
+
+The following example code shows how to create a `TableSchema` for a table with
+two fields (source and quote) of type string.
+
+![](/images/copy-icon.svg)
+
+```
+table_schema = {
+    'fields': [{
+        'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'
+    }, {
+        'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'
+    }]
+}
+```
+
+#### Using a string
+
+To create and use a table schema as a string, follow these steps.
+
+1. Create a single comma separated string of the form
+   “field1:type1,field2:type2,field3:type3” that defines a list of fields. The
+   type should specify the fieldâs BigQuery type.
+2. Use the `schema` parameter to provide your table schema when you apply a
+   write transform. Set the parameterâs value to the string.
+
+The following example shows how to use a string to specify the same table schema
+as the previous example.
+
+![](/images/copy-icon.svg)
+
+```
+# column_name:BIGQUERY_TYPE, ...
+table_schema = 'source:STRING, quote:STRING'
+```
+
+### Setting the insertion method
+
+BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
+streaming inserts. Each insertion method provides different tradeoffs of cost,
+quota, and data consistency. See the BigQuery documentation for
+[different data ingestion options](https://cloud.google.com/bigquery/loading-data)
+(specifically, [load jobs](https://cloud.google.com/bigquery/docs/batch-loading-data)
+and [streaming inserts](https://cloud.google.com/bigquery/streaming-data-into-bigquery))
+for more information about these tradeoffs.
+
+BigQueryIO chooses a default insertion method based on the input `PCollection`.
+You can use `method` to specify the desired insertion method. See
+[`WriteToBigQuery`](https://beam.apache.org/releases/pydoc/2.71.0/apache_beam.io.gcp.bigquery.html#apache_beam.io.gcp.bigquery.WriteToBigQuery)
+for the list of the available methods and their restrictions.
+
+BigQueryIO uses load jobs in the following situations:
+
+- When you apply a BigQueryIO write transform to a bounded `PCollection`.
+- When you specify load jobs as the insertion method using
+  `WriteToBigQuery(method='FILE_LOADS')`.
+
+**_Note:_** If you use batch loads in a streaming pipeline:
+
+You must use `triggering_frequency` to specify a triggering frequency for
+initiating load jobs. Be careful about setting the frequency such that your
+pipeline doesn’t exceed the BigQuery load job [quota limit](https://cloud.google.com/bigquery/quotas#load_jobs).
+
+You can set `with_auto_sharding=True` to enable dynamic sharding (starting
+2.29.0 release). The number of shards may be determined and changed at runtime.
+The sharding behavior depends on the runners.
+
+BigQueryIO uses streaming inserts in the following situations:
+
+- When you apply a BigQueryIO write transform to an unbounded `PCollection`.
+- When you specify streaming inserts as the insertion method using
+  `WriteToBigQuery(method='STREAMING_INSERTS')`.
+
+**_Note:_** Streaming inserts by default enables BigQuery [best-effort deduplication mechanism](https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication).
+You can disable that by setting `ignore_insert_ids=True`. The [quota limitations](https://cloud.google.com/bigquery/quotas#streaming_inserts)
+are different when deduplication is enabled vs. disabled.
+
+Streaming inserts applies a default sharding for each table destination. You can
+set `with_auto_sharding=True` (starting 2.29.0 release) to enable dynamic
+sharding. The number of shards may be determined and changed at runtime. The
+sharding behavior depends on the runners.
+
+### Writing to a table
+
+To write to a BigQuery table, apply the `WriteToBigQuery` transform.
+`WriteToBigQuery` supports both batch mode and streaming mode. You must apply
+the transform to a `PCollection` of dictionaries. In general, you’ll need to use
+another transform, such as `ParDo`, to format your output data into a
+collection.
+
+The following examples use this `PCollection` that contains quotes.
+
+![](/images/copy-icon.svg)
+
+```
+quotes = pipeline | beam.Create([
+    {
+        'source': 'Mahatma Gandhi', 'quote': 'My life is my message.'
+    },
+    {
+        'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."
+    },
+])
+```
+
+The following example code shows how to apply a `WriteToBigQuery` transform to
+write a `PCollection` of dictionaries to a BigQuery table. The write operation
+creates a table if needed. If the table already exists, it is replaced.
+
+![](/images/copy-icon.svg)
+
+```
+quotes | beam.io.WriteToBigQuery(
+    table_spec,
+    schema=table_schema,
+    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+```
+
+### Using the Storage Write API
+
+Starting with version 2.36.0 of the Beam SDK for Java, you can use the
+[BigQuery Storage Write API](https://cloud.google.com/bigquery/docs/write-api)
+from the BigQueryIO connector.
+
+Also after version 2.47.0 of Beam SDK for Python, SDK supports BigQuery Storage Write API.
+
+BigQuery Storage Write API for Python SDK currently has some limitations on supported data types. As this method makes use of cross-language transforms, we are limited to the types supported at the cross-language boundary. For example, `apache_beam.utils.timestamp.Timestamp` is needed to write a `TIMESTAMP` BigQuery type. Also, some types (e.g. `DATETIME`) are not supported yet. For more details, please refer to the [full type mapping](https://github.com/apache/beam/blob/0b430748cdd2e25edc553747ce018195e9cce888/sdks/python/apache_beam/io/gcp/bigquery_tools.py#L112-L123).
+
+**Note:** If you want to run WriteToBigQuery with Storage Write API from the source code, you need to run `./gradlew :sdks:java:io:google-cloud-platform:expansion-service:build` to build the expansion-service jar. If you are running from a released Beam SDK, the jar is already included.
+
+#### Exactly-once semantics
+
+To write to BigQuery using the Storage Write API, set `withMethod` to
+[`Method.STORAGE_WRITE_API`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html#STORAGE_WRITE_API).
+Hereâs an example transform that writes to BigQuery using the Storage Write API and exactly-once semantics:
+
+![](/images/copy-icon.svg)
+
+```
+quotes | "WriteTableWithStorageAPI" >> beam.io.WriteToBigQuery(
+    table_spec,
+    schema=table_schema,
+    method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API)
+```
+
+If you want to change the behavior of BigQueryIO so that all the BigQuery sinks
+for your pipeline use the Storage Write API by default, set the
+[`UseStorageWriteApi` option](https://github.com/apache/beam/blob/2c18ce0ccd7705473aa9ecc443dcdbe223dd9449/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.java#L82-L86).
+
+If your pipeline needs to create the table (in case it doesnât exist and you
+specified the create disposition as `CREATE_IF_NEEDED`), you must provide a
+table schema. The API uses the schema to validate data and convert it to a
+binary protocol.
+
+![](/images/copy-icon.svg)
+
+```
+table_schema = {
+    'fields': [{
+        'name': 'source', 'type': 'STRING', 'mode': 'NULLABLE'
+    }, {
+        'name': 'quote', 'type': 'STRING', 'mode': 'REQUIRED'
+    }]
+}
+```
+
+For streaming pipelines, you need to set two additional parameters: the number
+of streams and the triggering frequency.
+
+![](/images/copy-icon.svg)
+
+```
+# The Python SDK doesn't currently support setting the number of write streams
+quotes | "StorageWriteAPIWithFrequency" >> beam.io.WriteToBigQuery(
+    table_spec,
+    schema=table_schema,
+    method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+    triggering_frequency=5)
+```
+
+The number of streams defines the parallelism of the BigQueryIO Write transform
+and roughly corresponds to the number of Storage Write API streams that the
+pipeline uses. You can set it explicitly on the transform via
+[`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
+or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
+[`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
+Please note this is only supported for streaming pipelines.
+
+Triggering frequency determines how soon the data is visible for querying in
+BigQuery. You can explicitly set it via
+[`withTriggeringFrequency`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withTriggeringFrequency-org.joda.time.Duration-)
+or specify the number of seconds by setting the
+`storageWriteApiTriggeringFrequencySec` option.
+
+The combination of these two parameters affects the size of the batches of rows
+that BigQueryIO creates before calling the Storage Write API. Setting the
+frequency too high can result in smaller batches, which can affect performance.
+As a general rule, a single stream should be able to handle throughput of at
+least 1Mb per second. Creating exclusive streams is an expensive operation for
+the BigQuery service, so you should use only as many streams as needed for your
+use case. Triggering frequency in single-digit seconds is a good choice for most
+pipelines.
+
+When using `STORAGE_WRITE_API`, the `PCollection` returned by
+[`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
+contains the rows that failed to be written to the Storage Write API sink.
+
+#### At-least-once semantics
+
+If your use case allows for potential duplicate records in the target table, you
+can use the
+[`STORAGE_API_AT_LEAST_ONCE`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html#STORAGE_API_AT_LEAST_ONCE)
+method. This method doesnât persist the records to be written to
+BigQuery into its shuffle storage, which is needed to provide the exactly-once semantics
+of the `STORAGE_WRITE_API` method. Therefore, for most pipelines, using this method is often
+less expensive and results in lower latency.
+If you use `STORAGE_API_AT_LEAST_ONCE`, you donât need to
+specify the number of streams, and you canât specify the triggering frequency.
+
+Auto sharding is not applicable for `STORAGE_API_AT_LEAST_ONCE`.
+
+When using `STORAGE_API_AT_LEAST_ONCE`, the `PCollection` returned by
+[`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
+contains the rows that failed to be written to the Storage Write API sink.
+
+#### Tune the Storage Write API
+
+By default, the BigQueryIO Write transform uses Storage Write API settings that
+are reasonable for most pipelines.
+
+If you see performance issues, such as stuck pipelines, quota limit errors, or
+monotonically increasing backlog, consider tuning the following pipeline
+options when you run the job:
+
+| Option (Java/Python)                                                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxConnectionPoolConnections` `max_connection_pool_connections`                      | If the write mode is `STORAGE_API_AT_LEAST_ONCE` and the `useStorageApiConnectionPool` option is `true`, this option sets the maximum number of connections that each pool creates, per worker and region. If your pipeline writes many dynamic destinations (more than 20), and you see performance issues or append operations are competing for streams, then consider increasing this value.                                                                                                                                                                                                                                                           |
+| `minConnectionPoolConnections` `min_connection_pool_connections`                      | If the write mode is `STORAGE_API_AT_LEAST_ONCE` and the `useStorageApiConnectionPool` option is `true`, this option sets the minimum number of connections that each pool creates before any connections are shared, per worker and region. In practice, the minimum number of connections created is the minimum of this option and `numStorageWriteApiStreamAppendClients` x _destination count_. BigQuery initially creates that many connections at first, and only creates more connections if the current ones are overwhelmed. If you have performance issues, then consider increasing this value.                                                |
+| `numStorageWriteApiStreamAppendClients` `num_storage_write_api_stream_append_clients` | If the write mode is `STORAGE_API_AT_LEAST_ONCE`, this option sets the number of stream append clients allocated per worker and destination. For high-volume pipelines with a large number of workers, a high value can cause the job to exceed the BigQuery connection quota. For most low- to mid-volume pipelines, the default value is sufficient.                                                                                                                                                                                                                                                                                                     |
+| `storageApiAppendThresholdBytes` `storage_api_append_threshold_bytes`                 | Maximum size of a single append to the Storage Write API (best effort).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `storageApiAppendThresholdRecordCount` `storage_api_append_threshold_record_count`    | Maximum record count of a single append to the Storage Write API (best effort).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `storageWriteMaxInflightRequests` `storage_write_max_inflight_requests`               | Expected maximum number of inflight messages per connection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `useStorageApiConnectionPool` `use_storage_api_connection_pool`                       | If `true`, enables multiplexing mode, where multiple tables can share the same connection. This mode is only available when the write mode is `STORAGE_API_AT_LEAST_ONCE`. Consider enabling multiplexing if your write operation creates 20 or more connections. If you enable multiplexing, consider setting the following options to tune the number of connections created by the connection pool: - `minConnectionPoolConnections` - `maxConnectionPoolConnections` For more information, see [Connection pool management](https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management) in the BigQuery documentation. |
+
+#### Quotas
+
+Before using the Storage Write API, be aware of the
+[BigQuery Storage Write API quotas](https://cloud.google.com/bigquery/quotas#write-api-limits).
+
+### Using dynamic destinations
+
+You can use the dynamic destinations feature to write elements in a
+`PCollection` to different BigQuery tables, possibly with different schemas.
+
+The dynamic destinations feature groups your user type by a user-defined
+destination key, uses the key to compute a destination table and/or schema, and
+writes each group’s elements to the computed destination.
+
+In addition, you can also write your own types that have a mapping function to
+`TableRow`, and you can use side inputs in all `DynamicDestinations` methods.
+
+![](/images/copy-icon.svg)
+
+```
+fictional_characters_view = beam.pvalue.AsDict(
+    pipeline | 'CreateCharacters' >> beam.Create([('Yoda', True),
+                                                  ('Obi Wan Kenobi', True)]))
+
+def table_fn(element, fictional_characters):
+  if element in fictional_characters:
+    return 'my_dataset.fictional_quotes'
+  else:
+    return 'my_dataset.real_quotes'
+
+quotes | 'WriteWithDynamicDestination' >> beam.io.WriteToBigQuery(
+    table_fn,
+    schema=table_schema,
+    table_side_inputs=(fictional_characters_view, ),
+    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+```
+
+### Using time partitioning
+
+BigQuery time partitioning divides your table into smaller partitions, which is
+called a [partitioned table](https://cloud.google.com/bigquery/docs/partitioned-tables).
+Partitioned tables make it easier for you to manage and query your data.
+
+![](/images/copy-icon.svg)
+
+```
+quotes | 'WriteWithTimePartitioning' >> beam.io.WriteToBigQuery(
+    table_spec,
+    schema=table_schema,
+    write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+    additional_bq_parameters={'timePartitioning': {
+        'type': 'HOUR'
+    }})
+```
+
+## Limitations
+
+BigQueryIO currently has the following limitations.
+
+1. You canât sequence the completion of a BigQuery write with other steps of
+   your pipeline.
+2. If you are using the Beam SDK for Python, you might have import size quota
+   issues if you write a very large dataset. As a workaround, you can partition
+   the dataset (for example, using Beam’s `Partition` transform) and write to
+   multiple BigQuery tables. The Beam SDK for Java does not have this limitation
+   as it partitions your dataset for you.
+3. When you [load data](https://cloud.google.com/bigquery/docs/loading-data) into BigQuery, [these limits](https://cloud.google.com/bigquery/quotas#load_jobs) are applied.
+   By default, BigQuery uses a shared pool of slots to load data.
+   This means that the available capacity is not guaranteed, and your load may be queued until
+   a slot becomes available. If a slot does not become available within 6 hours,
+   the load will fail due to the limits set by BigQuery. To avoid this situation,
+   it is highly recommended that you use [BigQuery reservations](https://cloud.google.com/bigquery/docs/reservations-intro#benefits_of_reservations),
+   which ensure that your load does not get queued and fail due to capacity issues.
+
+## Additional examples
+
+You can find additional examples that use BigQuery in Beam’s examples
+directories.
+
+### Java cookbook examples
+
+These examples are from the Java [cookbook examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)
+directory.
+
+- [BigQueryTornadoes](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java)
+  reads the public samples of weather data from BigQuery, counts the number of
+  tornadoes that occur in each month, and writes the results to a BigQuery
+  table.
+- [CombinePerKeyExamples](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/CombinePerKeyExamples.java)
+  reads the public Shakespeare data from BigQuery, and for each word in the
+  dataset that exceeds a given length, generates a string containing the list of
+  play names in which that word appears. The pipeline then writes the results to
+  a BigQuery table.
+- [FilterExamples](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/FilterExamples.java)
+  reads public samples of weather data from BigQuery, performs a projection
+  on the data, finds the global mean of the temperature readings, filters on
+  readings for a single given month, and outputs only data (for that month)
+  that has a mean temp smaller than the derived global mean.
+- [JoinExamples](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java)
+  reads a sample of the [GDELT “world event”](https://goo.gl/OB6oin) from
+  BigQuery and joins the event `action` country code against a table that maps
+  country codes to country names.
+- [MaxPerKeyExamples](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/MaxPerKeyExamples.java)
+  reads the public samples of weather data from BigQuery, finds the maximum
+  temperature for each month, and writes the results to a BigQuery table.
+- [TriggerExample](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/TriggerExample.java)
+  performs a streaming analysis of traffic data from San Diego freeways. The
+  pipeline looks at the data coming in from a text file and writes the results
+  to a BigQuery table.
+
+### Java complete examples
+
+These examples are from the Java [complete examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete)
+directory.
+
+- [AutoComplete](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/AutoComplete.java)
+  computes the most popular hash tags for every prefix, which can be used for
+  auto-completion. The pipeline can optionally write the results to a BigQuery
+  table.
+- [StreamingWordExtract](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/StreamingWordExtract.java)
+  reads lines of text, splits each line into individual words, capitalizes those
+  words, and writes the output to a BigQuery table.
+- [TrafficMaxLaneFlow](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TrafficMaxLaneFlow.java)
+  reads traffic sensor data, finds the lane that had the highest recorded flow,
+  and writes the results to a BigQuery table.
+- [TrafficRoutes](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/TrafficRoutes.java)
+  reads traffic sensor data, calculates the average speed for each window and
+  looks for slowdowns in routes, and writes the results to a BigQuery table.
+
+### Python cookbook examples
+
+These examples are from the Python [cookbook examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/cookbook)
+directory.
+
+- [BigQuery schema](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_schema.py)
+  creates a `TableSchema` with nested and repeated fields, generates data with
+  nested and repeated fields, and writes the data to a BigQuery table.
+- [BigQuery side inputs](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_side_input.py)
+  uses BigQuery sources as side inputs. It illustrates how to insert
+  side-inputs into transforms in three different forms: as a singleton, as a
+  iterator, and as a list.
+- [BigQuery tornadoes](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/bigquery_tornadoes.py)
+  reads from a BigQuery table that has the ‘month’ and ’tornado’ fields as part
+  of the table schema, computes the number of tornadoes in each month, and
+  outputs the results to a BigQuery table.
+- [BigQuery filters](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/filters.py)
+  reads weather station data from a BigQuery table, manipulates BigQuery rows in
+  memory, and writes the results to a BigQuery table.
