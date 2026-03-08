@@ -79,10 +79,14 @@ AEPs (API Enhancement Proposals) are the authoritative design standards for APIs
 - **AEP-217:** Unreachable resources
 
 ### 📦 Batch Operations
+*Essential for high-volume agent operations.*
 - **AEP-231:** Batch Get
 - **AEP-233:** Batch Create
 - **AEP-234:** Batch Update
 - **AEP-235:** Batch Delete
+
+> **Pro Tip: Partial Success for Agents**
+> When building APIs for agents, prefer **partial success** semantics over all-or-nothing atomicity, even for synchronous batch operations. This allows agents to succeed on valid operations and receive specific error details for failed ones, preventing a single invalid entry from blocking an entire batch. Use a `failed_requests` map to return individual errors.
 
 ### 🏛️ Meta & Governance
 - **AEP-1:** Purpose and Guidelines
