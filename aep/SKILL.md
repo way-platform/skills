@@ -98,9 +98,9 @@ AEPs (API Enhancement Proposals) are the authoritative design standards for APIs
 1.  **Identify the Requirement:** e.g., "I need to add a 'status' field."
 2.  **Find the Rule:** Search the index above. "AEP-216: States" looks relevant.
 3.  **Read the Standard:**
-    - The content is located in: `references/aep/general/<NUMBER>/aep.md.j2`
-    - *Example:* To read about Standard Fields, check `references/aep/general/0148/aep.md.j2`
+    - The content is located in: `references/aep/general/<NUMBER>.md`
+    - *Example:* To read about Standard Fields, check `references/aep/general/0148.md`
 4.  **Verify:** Ensure your implementation matches the spec exactly (naming, behavior, types).
 
 **Pro Tip:** Use `grep` to search across all AEPs if the index isn't enough:
-`grep -r "my search term" .agents/skills/aep/references/aep/general`
+`grep -r "my search term" references/aep/general`
