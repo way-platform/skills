@@ -1,6 +1,6 @@
 ---
 name: beam-dataflow-python
-description: Expertise in Apache Beam (Python SDK) and Google Cloud Dataflow. Use when creating, debugging, optimizing, or reviewing Python-based data pipelines. Critical for tasks involving unified batch/streaming architectures, Protobuf serialization, Docker/Flex Templates, windowing/triggers, stateful processing, or operational reliability on Google Cloud.
+description: Apache Beam (Python SDK) and Google Cloud Dataflow. Use when creating, debugging, or reviewing Python data pipelines — batch/streaming, Protobuf, Flex Templates, windowing, stateful processing.
 ---
 
 # Apache Beam & Dataflow (Python) Best Practices

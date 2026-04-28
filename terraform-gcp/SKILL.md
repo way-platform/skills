@@ -1,12 +1,6 @@
 ---
 name: terraform-gcp
-description: >-
-  Write, review, and refactor Terraform HCL for Google Cloud Platform. Use
-  when creating or editing any .tf files targeting GCP resources, structuring
-  root modules or reusable modules for GCP, managing IAM with the Google
-  provider, writing terraform tests for GCP infrastructure, importing or
-  exporting GCP resources, or organizing Terraform project directories for
-  GCP deployments.
+description: Write, review, and refactor Terraform HCL for GCP. Use when editing .tf files, managing IAM, writing terraform tests, or organizing GCP Terraform modules.
 ---
 
 # Terraform + GCP
@@ -15,14 +9,14 @@ description: >-
 
 Per `references/terraform-style-guide.md` (HashiCorp):
 
-| File | Purpose |
-|------|---------|
+| File           | Purpose                                     |
+| -------------- | ------------------------------------------- |
 | `terraform.tf` | Terraform and provider version requirements |
-| `providers.tf` | Provider configurations |
-| `main.tf` | Primary resources and data sources |
-| `variables.tf` | Input variable declarations (alphabetical) |
-| `outputs.tf` | Output value declarations (alphabetical) |
-| `locals.tf` | Local value declarations |
+| `providers.tf` | Provider configurations                     |
+| `main.tf`      | Primary resources and data sources          |
+| `variables.tf` | Input variable declarations (alphabetical)  |
+| `outputs.tf`   | Output value declarations (alphabetical)    |
+| `locals.tf`    | Local value declarations                    |
 
 For larger modules, split `main.tf` into purpose-grouped files (`references/general-style-and-structure.md`, Google):
 
@@ -71,6 +65,7 @@ Mark `sensitive = true` for secrets. Don't provide defaults for environment-spec
 values like `project_id` — force the caller to provide them.
 
 **GCP-specific naming:**
+
 - Numeric values: include units — `ram_size_gb`, `disk_size_gib`
 - Storage: binary prefixes (`kibi`, `mebi`, `gibi`); all other measurements: decimal
 - Booleans: positive names — `enable_external_access`, not `disable_internal`
@@ -178,11 +173,11 @@ data sources to reference resources managed by another Terraform config.
 
 ## IAM — Authoritative vs Additive (CRITICAL)
 
-| Resource pattern | Behavior | Use? |
-|-----------------|----------|------|
-| `google_*_iam_policy` | **Authoritative** — overwrites ALL roles, removes Google-managed accounts | AVOID |
-| `google_*_iam_binding` | **Authoritative** — overwrites that specific role's bindings | Avoid unless owning the entire role |
-| `google_*_iam_member` | **Additive** — adds one member, leaves all others untouched | PREFERRED |
+| Resource pattern       | Behavior                                                                  | Use?                                |
+| ---------------------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| `google_*_iam_policy`  | **Authoritative** — overwrites ALL roles, removes Google-managed accounts | AVOID                               |
+| `google_*_iam_binding` | **Authoritative** — overwrites that specific role's bindings              | Avoid unless owning the entire role |
+| `google_*_iam_member`  | **Additive** — adds one member, leaves all others untouched               | PREFERRED                           |
 
 Authoritative resources silently remove Google's auto-managed service account roles,
 breaking Cloud services. Default to `google_*_iam_member`.
@@ -306,10 +301,10 @@ service/
 
 Two categories of `.tftest.hcl` tests:
 
-| Type | Naming | Mode | Creates resources? |
-|------|--------|------|-------------------|
-| Unit | `*_unit_test.tftest.hcl` | `plan` | No — fast, safe |
-| Integration | `*_integration_test.tftest.hcl` | `apply` | Yes — real infra |
+| Type        | Naming                          | Mode    | Creates resources? |
+| ----------- | ------------------------------- | ------- | ------------------ |
+| Unit        | `*_unit_test.tftest.hcl`        | `plan`  | No — fast, safe    |
+| Integration | `*_integration_test.tftest.hcl` | `apply` | Yes — real infra   |
 
 ```hcl
 run "bucket_name_follows_convention" {
@@ -323,6 +318,7 @@ run "bucket_name_follows_convention" {
 ```
 
 Key practices:
+
 - Randomize resource names/project IDs to avoid collisions
 - Use a dedicated test project isolated from dev/prod
 - Always destroy after tests: `terraform destroy` or `project_cleanup` module
@@ -371,16 +367,16 @@ See `references/import-google-cloud-resources.md` and
 
 ## Reference Files
 
-| File | Read when |
-|------|-----------|
-| `references/terraform-style-guide.md` | Full HashiCorp style guide: formatting, block order, naming, security patterns |
-| `references/terraform-test.md` | Complete `.tftest.hcl` syntax: run/assert/mock blocks, parallel execution, expect_failures |
-| `references/general-style-and-structure.md` | Module structure, data source placement, static files, helper scripts, expression complexity |
-| `references/root-modules.md` | Root module patterns, remote state, environment dirs, workspace rules |
-| `references/reusable-modules.md` | API activation, OWNERS file, SemVer releases, submodule patterns, `moved` blocks |
-| `references/dependency-management.md` | Implicit vs explicit deps with full examples, cross-config remote state |
-| `references/working-with-google-cloud-resources.md` | IAM authoritative vs additive detail, VM baking |
-| `references/testing.md` | GCP testing strategies, parallel execution, test environment isolation, cleanup |
-| `references/import-google-cloud-resources.md` | Step-by-step import workflows, `import` block + `generate-config-out` |
-| `references/export-google-cloud-resources.md` | Bulk export with `gcloud beta resource-config`, supported resource types |
-| `references/blueprints.md` | Cloud Foundation Toolkit blueprint patterns |
+| File                                                | Read when                                                                                    |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `references/terraform-style-guide.md`               | Full HashiCorp style guide: formatting, block order, naming, security patterns               |
+| `references/terraform-test.md`                      | Complete `.tftest.hcl` syntax: run/assert/mock blocks, parallel execution, expect_failures   |
+| `references/general-style-and-structure.md`         | Module structure, data source placement, static files, helper scripts, expression complexity |
+| `references/root-modules.md`                        | Root module patterns, remote state, environment dirs, workspace rules                        |
+| `references/reusable-modules.md`                    | API activation, OWNERS file, SemVer releases, submodule patterns, `moved` blocks             |
+| `references/dependency-management.md`               | Implicit vs explicit deps with full examples, cross-config remote state                      |
+| `references/working-with-google-cloud-resources.md` | IAM authoritative vs additive detail, VM baking                                              |
+| `references/testing.md`                             | GCP testing strategies, parallel execution, test environment isolation, cleanup              |
+| `references/import-google-cloud-resources.md`       | Step-by-step import workflows, `import` block + `generate-config-out`                        |
+| `references/export-google-cloud-resources.md`       | Bulk export with `gcloud beta resource-config`, supported resource types                     |
+| `references/blueprints.md`                          | Cloud Foundation Toolkit blueprint patterns                                                  |
