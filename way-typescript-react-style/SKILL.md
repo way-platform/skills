@@ -1,6 +1,6 @@
 ---
 name: way-typescript-react-style
-description: Guide for writing idiomatic, high-quality TypeScript and React code. Use this skill when writing, refactoring, or reviewing TypeScript/React code to ensure adherence to established conventions, React rules, and performance best practices. Trigger proactively when writing React components, TypeScript types, or Next.js pages.
+description: Guide for writing idiomatic, high-quality TypeScript and React code, and for writing or reviewing vitest tests. Use this skill when writing, refactoring, or reviewing TypeScript/React code or test files to ensure adherence to established conventions, React rules, performance best practices, and vitest testing patterns. Trigger proactively when writing React components, TypeScript types, Next.js pages, or vitest tests, or when auditing existing tests.
 ---
 
 # Way TypeScript & React Style
@@ -231,6 +231,10 @@ See `references/vercel-rules/` for the full 57-rule reference. Key patterns:
 - **Initialize once per app load**: Don't put one-time init in `useEffect([], ...)` — it re-runs on remount and runs twice in dev. Use a module-level `let didInit = false` guard.
 - **`useEffectEvent`**: Creates a stable function reference that always calls the latest handler, without adding the handler to effect dependencies.
 
+## Testing Best Practise
+
+**STOP before writing or reviewing vitest tests** — load [references/testing-best-practices.md](references/testing-best-practices.md) first. It covers the NEVER-do list (untestable files, mock cleanup, loose assertions, testing implementation details, skipping `tsc --noEmit` on test files, and more), the questions to ask before writing a test, the pre-write and test-review workflows, and links to 12 detailed pattern files in `references/testing/` plus the review report template in `assets/testing-output-report-template.md`.
+
 ## Available References
 
 Detailed documentation available in the `references/` directory:
@@ -241,3 +245,6 @@ Detailed documentation available in the `references/` directory:
 - **[Rules of React](references/react-rules.md)**: All four pages of React's official rules — purity, invocation, hooks.
 - **[Vercel React Rules](references/vercel-rules/)**: 57 individual rule files with incorrect/correct code examples. Named by category prefix: `async-*`, `bundle-*`, `server-*`, `client-*`, `rerender-*`, `rendering-*`, `js-*`, `advanced-*`. Load individual files on demand rather than the full set.
 - **[TanStack Query Reference](references/tanstack-query.md)**: Full API reference for `@tanstack/react-query` v5 — for fallback cases where connect-query is insufficient.
+- **[Testing Best Practices](references/testing-best-practices.md)**: Full vitest testing guide — NEVER-do list, pre-write checklist, workflows for writing and reviewing tests, and a table of detailed pattern files.
+- **[Vitest Pattern Files](references/testing/)**: 12 files covering organization, AAA pattern, parameterized tests, error handling, assertions, test doubles, async testing, performance, vitest features, snapshot testing, property-based testing, and a quick-start example. Load individual files on demand, per the table in [testing-best-practices.md](references/testing-best-practices.md).
+- **[Test Review Report Template](assets/testing-output-report-template.md)**: Standardized format for test code review/audit findings — severity levels, impact analysis, and a summary table.
