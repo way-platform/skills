@@ -14,6 +14,9 @@ description: Guide for writing idiomatic, high-quality TypeScript and React code
 - **Never use IIFEs** — extract a named function instead: a top-level pure function for derived values, or a named inner function for JSX that closes over component state
 - Avoid `as` casts; prefer narrowing, generics, or splitting code paths. Use `as` only when interoperating with external/untyped APIs and add a short justification comment
 - Handle undefined args explicitly (no `?? 0` for mandatory params)
+- **Naming**: names describe the entity, not the mechanism. No suffixes like `Base`/`New`/`Old`/`Initial` unless they carry real semantic meaning. Keep sibling verbs consistent across a related API. Avoid cryptic identifiers (`v`, `n`) for domain values — short names are fine only in conventional contexts (`i`, `x`/`y`, generic `T`/`K`/`V`)
+- **Code structure**: prioritize reusing `lib`/`hooks`/`components` over duplicating logic; promote generic helpers out of feature folders into `lib/` or `hooks/`. Keep functions small and single-purpose — split 100+ line functions into focused named helpers. Extract distinct complex JSX into named components when it helps reuse, coupling, or readability
+- **Comments**: none by default — well-named identifiers carry the `what`. Add a short comment only when the `why` is non-obvious (a workaround, a hidden invariant, a subtle ordering constraint); never document the implementation itself
 - **Do NOT use `useMemo` or `useCallback`** — React Compiler handles memoization. (Project AGENTS.md may define narrow exceptions.)
 - **STOP before writing `useEffect`** — most uses are wrong. Evaluate the decision tree in this skill first. Effects are only for synchronizing with external systems.
 - **Data fetching hierarchy**: Always use `@connectrpc/connect-query` hooks with generated `*_connectquery.ts` files. Only fall back to raw `@tanstack/react-query` when no generated file exists or the pattern cannot be expressed via connect-query.
@@ -149,6 +152,8 @@ For the full tanstack-query API reference see [references/tanstack-query.md](ref
 
 ### Type Safety in Practice
 
+See [TypeScript Do's and Don'ts](references/typescript-dos-and-donts.md) for the full guide on types, casting, and `any`/`unknown`.
+
 - **Narrow, don't cast** — use type guards, discriminated unions, and `satisfies` instead of `as`.
 - **Prefer `unknown` over `any`** — force explicit narrowing at the call site.
 - **Use `satisfies`** to validate a value matches a type without widening it: `const config = { ... } satisfies Config`.
@@ -241,7 +246,7 @@ Detailed documentation available in the `references/` directory:
 
 - **[useEffect Anti-Patterns](references/useeffect-anti-patterns.md)**: 9 common mistakes with incorrect/correct code examples.
 - **[useEffect Alternatives](references/useeffect-alternatives.md)**: `useMemo`, `key` prop, lifting state, `useSyncExternalStore`, event handlers, custom hooks.
-- **[TypeScript Do's and Don'ts](references/typescript-dos-and-donts.md)**: Official TypeScript handbook guidance on types, callbacks, and overloads.
+- **[TypeScript Do's and Don'ts](references/typescript-dos-and-donts.md)**: Official TypeScript handbook guidance on types, callbacks, and overloads, plus casting/`any`/`unknown` guidance.
 - **[Rules of React](references/react-rules.md)**: All four pages of React's official rules — purity, invocation, hooks.
 - **[Vercel React Rules](references/vercel-rules/)**: 57 individual rule files with incorrect/correct code examples. Named by category prefix: `async-*`, `bundle-*`, `server-*`, `client-*`, `rerender-*`, `rendering-*`, `js-*`, `advanced-*`. Load individual files on demand rather than the full set.
 - **[TanStack Query Reference](references/tanstack-query.md)**: Full API reference for `@tanstack/react-query` v5 — for fallback cases where connect-query is insufficient.
